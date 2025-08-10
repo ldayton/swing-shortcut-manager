@@ -1,0 +1,87 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.diffplug.spotless' version '6.25.0'
+    id 'net.ltgt.errorprone' version '4.1.0'
+    id 'com.github.ben-manes.versions' version '0.51.0'  // Dependency update checker
+}
+
+group = 'edu.upenn.psych.memory'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'com.google.guava:guava:33.0.0-jre'
+        eachDependency { details ->
+            if (details.requested.group == 'com.google.collections' && details.requested.name == 'google-collections') {
+                details.useTarget group: 'com.google.guava', name: 'guava', version: '33.0.0-jre'
+            }
+        }
+    }
+}
+
+dependencies {
+    // Runtime dependencies
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.18.2'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    
+    // Build-time/development tools
+    errorprone 'com.google.errorprone:error_prone_core:2.33.0'
+}
+
+application {
+    mainClass = 'edu.upenn.psych.memory.shortcutmanager.Main'
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'edu.upenn.psych.memory.shortcutmanager.Main'
+        )
+    }
+}
+
+compileJava {
+    options.compilerArgs = ['-Xlint:unchecked', '-Xlint:deprecation']
+    options.errorprone.disableWarningsInGeneratedCode = true
+}
+
+// Spotless - Code formatting
+spotless {
+    java {
+        googleJavaFormat('1.19.2')
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+        formatAnnotations()
+    }
+}
+
+
+// Run quality checks automatically
+check.dependsOn spotlessCheck
+
+// Versions plugin - Check for outdated dependencies
+dependencyUpdates {
+    // Reject versions which are release candidates, milestones, or alphas
+    rejectVersionIf {
+        candidate.version ==~ /(?i).*[.-](alpha|beta|rc|cr|m|preview|b|ea|snapshot).*/
+    }
+    
+    // Check for updates to Gradle plugins too
+    gradleReleaseChannel = "current"
+    
+    // Output format
+    outputFormatter = "json,xml,html"
+    outputDir = "build/dependencyUpdates"
+    reportfileName = "report"
+}
